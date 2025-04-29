@@ -1,0 +1,125 @@
+import asyncio
+from datetime import datetime, timedelta
+
+# -- UTILS: Stub Agent and Runner if openai.Agent is unavailable --
+try:
+    from openai import Agent, Runner
+except ModuleNotFoundError:
+    class Agent:
+        def __init__(self, name, instructions=None, tools=None, handoffs=None):
+            self.name = name
+            self.instructions = instructions
+            self.tools = tools or []
+            self.handoffs = handoffs or []
+
+    class Runner:
+        @staticmethod
+        async def run(agent, *args, **kwargs):
+            # Simple loop: execute a task or tool for demonstration
+            print(f"[Runner] Executing agent: {agent.name}")
+            return None
+
+# -- STEP 1: Define Agent Instructions --
+marketing_instructions = """
+You are the Head of Marketing for PartyPal.
+Your mission is to grow PartyPal into a $100M+ company by increasing users, vendors, GMV, and brand loyalty.
+You must:
+- Focus on KPIs: MAUs, CAC, LTV, Viral Coefficient, GMV.
+- Operate a weekly schedule and manage experiments.
+- Maintain brand voice: Fun, energetic, trustworthy.
+"""
+
+# -- STEP 2: Define Tools as Async Functions --
+async def post_social_media(content):
+    print(f"[Social] Posting: {content}")
+
+async def launch_email_campaign(subject, body):
+    print(f"[Email] Subject: {subject}")
+
+async def analyze_campaign_performance():
+    print("[Analytics] Analyzing KPIs...")
+
+async def run_ad_experiment(description):
+    print(f"[Experiment] {description}")
+
+# -- STEP 3: Default 30-Day Experiments Plan --
+def load_default_experiments(start_date: datetime):
+    experiments = []
+    for i in range(30):
+        day = start_date + timedelta(days=i)
+        # Rotate between referral, viral, and ad tests
+        if i % 3 == 0:
+            desc = "Launch referral incentive program"
+        elif i % 3 == 1:
+            desc = "Run TikTok viral challenge"
+        else:
+            desc = "A/B test new Instagram ad creative"
+        experiments.append((day.strftime('%Y-%m-%d'), desc))
+    return experiments
+
+async def execute_default_experiments():
+    plan = load_default_experiments(datetime.now())
+    for date_str, desc in plan:
+        print(f"[{date_str}] Scheduling experiment: {desc}")
+        await run_ad_experiment(desc)
+
+# -- STEP 4: Weekly Execution Schedule --
+async def weekly_marketing_cycle():
+    weekday = datetime.now().strftime('%A')
+    tasks = {
+        'Monday': [analyze_campaign_performance, lambda: run_ad_experiment("Test new Instagram ad creatives"), lambda: run_ad_experiment("Launch TikTok viral challenge")],
+        'Tuesday': [lambda: post_social_media("Party tips carousel on Instagram"), lambda: post_social_media("Vendor spotlight TikTok video")],
+        'Wednesday': [lambda: launch_email_campaign("Midweek Party Deals!", "Find your perfect vendor today!")],
+        'Thursday': [analyze_campaign_performance],
+        'Friday': [lambda: post_social_media("Customer success story"), lambda: post_social_media("New vendor partnerships")],
+        'Saturday': [lambda: post_social_media("Funny party planning hacks")],
+        'Sunday': [lambda: print("Planning next week's experiments.")]
+    }
+    for task in tasks.get(weekday, []):
+        await task()
+
+# -- STEP 5: Multi-Agent Orchestration Setup --
+# Define specialized agents as simple tasks
+async def pr_agent_task():
+    print("[PR] Distributing press release to media outlets.")
+
+async def influencer_agent_task():
+    print("[Influencer] Launching influencer collaboration campaigns.")
+
+async def paid_ads_agent_task():
+    print("[PaidAds] Optimizing Google and Meta ad buys.")
+
+# Create these as Agent instances (for demo)
+pr_agent = Agent(name="PR Agent", tools=[pr_agent_task])
+influencer_agent = Agent(name="Influencer Agent", tools=[influencer_agent_task])
+paid_ads_agent = Agent(name="Paid Ads Agent", tools=[paid_ads_agent_task])
+
+# Manager Agent that orchestrates specialized agents
+manager_agent = Agent(
+    name="Marketing Manager Agent",
+    instructions="Orchestrate PR, Influencer, Paid Ads, and default marketing cycles.",
+    tools=[executor for executor in [pr_agent_task, influencer_agent_task, paid_ads_agent_task]]
+)
+
+# -- STEP 6: Guardrails --
+async def content_safety_guardrail(message: str):
+    banned = ['hate', 'violence', 'illegal']
+    if any(b in message.lower() for b in banned):
+        raise ValueError("Unsafe content detected!")
+    return True
+
+# -- STEP 7: Main Runner Integrating Everything --
+async def run_full_marketing_system():
+    # Safety check
+    await content_safety_guardrail("Startup check")
+    # Execute 30-day experiments plan
+    await execute_default_experiments()
+    # Weekly recurring tasks
+    await weekly_marketing_cycle()
+    # Orchestrate specialized agents
+    await pr_agent_task()
+    await influencer_agent_task()
+    await paid_ads_agent_task()
+
+if __name__ == "__main__":
+    asyncio.run(run_full_marketing_system())
